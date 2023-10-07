@@ -13,6 +13,10 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+if torch.cuda.is_available():
+    default_device = "cuda"
+else:
+    default_device = "cpu"
 
 def main(args):
     pic_path = args.source_video
@@ -20,7 +24,10 @@ def main(args):
     enhancer_region = args.enhancer
     save_dir = os.path.join(args.result_dir, strftime("%Y_%m_%d_%H.%M.%S"))
     os.makedirs(save_dir, exist_ok=True)
-    device = args.device
+    if hasattr(args, 'device'):
+        device = args.device
+    else:
+        device = default_device
     batch_size = args.batch_size
     current_code_path = sys.argv[0]
     current_root_path = os.path.split(current_code_path)[0]
@@ -75,7 +82,8 @@ def main(args):
     data = get_facerender_data(coeff_path, crop_pic_path, first_coeff_path, audio_path, batch_size, device)
     tmp_path, new_audio_path, return_path = animate_from_coeff.generate(data, save_dir, pic_path, crop_info,
                                                                         restorer_model, enhancer_model, enhancer_region)
-    torch.cuda.empty_cache()
+    if device == 'cuda':
+        torch.cuda.empty_cache()
     if args.use_DAIN:
         import paddle
         from src.dain_model import dain_predictor

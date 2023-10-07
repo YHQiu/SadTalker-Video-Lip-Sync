@@ -39,6 +39,7 @@ SadTalker-Video-Lip-Sync
 |   ├── ...
 ├──...
 ├──inference.py
+├──gradio_webui.py
 ├──README.md
 ```
 
@@ -50,6 +51,11 @@ python inference.py --driven_audio <audio.wav> \
                     --enhancer <none,lip,face> \  #(默认lip)
                     --use_DAIN \ #(使用该功能会占用较大显存和消耗较多时间)
              		--time_step 0.5 #(插帧频率，默认0.5，即25fps—>50fps;0.25,即25fps—>100fps)
+```
+
+## 通过WebUI运行
+```python
+python gradio_webui.py
 ```
 
 
