@@ -53,12 +53,16 @@ python inference.py --driven_audio <audio.wav> \
              		--time_step 0.5 #(插帧频率，默认0.5，即25fps—>50fps;0.25,即25fps—>100fps)
 ```
 
-## 通过WebUI运行
+* 通过WebUI运行
 ```python
 python gradio_webui.py
 ```
-
-
+或者
+```commandline
+streamlit run webui_streamlit.py --server.address 127.0.0.1 --server.port 8082
+```
+USERNAME = "user"
+PASSWORD = "password"
 
 ## 4.合成效果(Results)
 

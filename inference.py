@@ -82,6 +82,9 @@ def main(args):
     data = get_facerender_data(coeff_path, crop_pic_path, first_coeff_path, audio_path, batch_size, device)
     tmp_path, new_audio_path, return_path = animate_from_coeff.generate(data, save_dir, pic_path, crop_info,
                                                                         restorer_model, enhancer_model, enhancer_region)
+    # result path
+    result_file_path = return_path
+
     if device == 'cuda':
         torch.cuda.empty_cache()
     if args.use_DAIN:
@@ -96,8 +99,11 @@ def main(args):
         save_path = return_path[:-4] + '_dain.mp4'
         command = r'ffmpeg -y -i "%s" -i "%s" -vcodec copy "%s"' % (temp_video_path, new_audio_path, save_path)
         os.system(command)
+        result_file_path = save_path
+        os.remove(return_path)
     os.remove(tmp_path)
 
+    return result_file_path
 
 if __name__ == '__main__':
     parser = ArgumentParser()

@@ -6,7 +6,7 @@ librosa==0.10.0
 numba
 resampy==0.3.1
 pydub==0.25.1
-scipy==1.11.3 # 对应 numpy==1.23.4
+scipy==1.11.2
 kornia==0.6.8
 tqdm
 yacs==0.1.8
@@ -18,5 +18,7 @@ facexlib==0.2.5
 gradio
 gfpgan
 dlib-bin
-TTS==0.17.6
+tts==0.17.8
+torchaudio==2.1.0
 speechbrain
+streamlit

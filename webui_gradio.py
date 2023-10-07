@@ -6,86 +6,16 @@ date: 2023-09-15
 
 import sys
 
-import xtts
+from inference_webui import run, run_audio, get_audio_length, get_video_length, generate_random_filename, convert_to_wav
 from src.utils import video_concat, audio_process_tool
 
-sys.path.append('/usr/local/lib/python3.9/site-packages')
+#sys.path.append('/usr/local/lib/python3.9/site-packages')
 
-import cv2
-import hashlib
 import os
-from argparse import Namespace
-from datetime import datetime
-import random
 
 import gradio as gr
 import subprocess
-import time
-import numpy as np
-import cv2
 
-from pydub import AudioSegment
-
-from inference import main
-
-
-tmp_path = "/tmp/gradio"
-if not os.path.exists(tmp_path):os.makedirs(tmp_path, exist_ok=True)
-
-def get_audio_length(audio_file_path):
-    """
-    获取音频文件的长度（秒）。
-    """
-    audio = AudioSegment.from_file(audio_file_path)
-    return len(audio) / 1000.0  # 转换为秒
-
-
-def get_video_length(video_file_path):
-    """
-    获取视频文件的长度（秒）。
-    """
-    video = cv2.VideoCapture(video_file_path)
-
-    # 检查视频是否成功打开
-    if not video.isOpened():
-        raise Exception("无法打开视频文件")
-
-    # 获取视频的帧数和帧率
-    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    frame_rate = int(video.get(cv2.CAP_PROP_FPS))
-
-    # 计算视频长度（秒）
-    video_length = frame_count / frame_rate
-
-    # 释放视频对象
-    video.release()
-
-    return video_length
-
-# 定义推理函数
-def run(driven_audio, source_video, enhancer, use_DAIN, time_step, return_path):
-    args = Namespace(
-        driven_audio=driven_audio,
-        source_video=source_video,
-        checkpoint_dir='./checkpoints',
-        result_dir='./results',
-        batch_size=1,
-        enhancer=enhancer,
-        cpu=False,  # Assuming you don't want to run on CPU by default
-        use_DAIN=use_DAIN,
-        DAIN_weight='./checkpoints/DAIN_weight',
-        dian_output='dian_output',
-        time_step=time_step,
-        remove_duplicates=False,
-        return_path=return_path
-    )
-    return main(args)
-
-def generate_random_filename(input):
-    current_time = str(datetime.now())  # 获取当前时间戳字符串
-    random_number = str(random.random())  # 生成一个随机浮点数字符串
-    hash_str = "genereate_hash" + input + current_time + random_number
-    return hashlib.md5(hash_str.encode()).hexdigest()
 
 def run_audio_inference(submit_tts_button, text, speaker_audio, speaker_video, speed, decoder_iterations, sample_rate, post_filter_magnitude_threshold, post_filter_mel_smoothing):
 
@@ -94,18 +24,8 @@ def run_audio_inference(submit_tts_button, text, speaker_audio, speaker_video, s
     if speaker_audio is None and speaker_video is None:
         raise ValueError("请选择需要模仿的发音人语音,音频或者视频格式都可以。")
 
-    if speaker_audio is not None:
-        audio_file = preprocess_audio(speaker_audio)
-    else:
-        audio_file = preprocess_audio(speaker_video)
-
-    # 对音频进行降噪处理
-    process_audio_file = audio_process_tool.process_audio(audio_file, os.path.join(tmp_path, generate_random_filename(audio_file)+".wav"), sample_rate)
-    print(f"process audio file is {process_audio_file}")
-
-    output_wav_path = os.path.join(tmp_path, generate_random_filename(text)+".wav")
-    xtts.tts_sync(text, output_wav_path, process_audio_file, speed, decoder_iterations, sample_rate, post_filter_magnitude_threshold, post_filter_mel_smoothing)
-    return output_wav_path
+    return run_audio(decoder_iterations, post_filter_magnitude_threshold, post_filter_mel_smoothing, sample_rate,
+                     speaker_audio, speaker_video, speed, text)
 
 def run_inference(submit_button, driven_audio, source_video, enhancer:gr.Dropdown, use_DAIN:gr.Checkbox, time_step:gr.Slider, result_video_output: gr.Video):
     # 检查音频和视频是否文件都已选择
@@ -133,74 +53,20 @@ def run_inference(submit_button, driven_audio, source_video, enhancer:gr.Dropdow
         processed_video_path = source_video  # 音频和视频长度相同，无需处理
 
     # 构建命令行参数
-    current_timestamp = int(time.time())
-    result_path = f"./results/output/{current_timestamp}.mp4"
+    result_dir = os.path.dirname(source_video)
 
     # 执行推理
     try:
-        result_video_path = run(driven_audio, processed_video_path, enhancer, use_DAIN, time_step, result_path)
+        result_video_path = run(driven_audio, processed_video_path, enhancer, use_DAIN, time_step, result_dir)
         result_message = "推理完成！"
     except subprocess.CalledProcessError as e:
-        result_video_path = None
         result_message = f"推理失败：{e.stderr.decode('utf-8')}"
         raise ValueError(result_message)
 
     # 读取结果视频
     print(f"end video= {result_video_path}")
+    print(f"result message:{result_message}")
     return result_video_path
-
-
-def convert_to_wav(input_file):
-    # Ensure the input file is in WAV format
-    if input_file.lower().endswith('.wav'):
-        return input_file
-
-    if input_file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')):
-        # Get the audio codec and create an AudioSegment
-        # Create the output WAV file path
-        output_file = os.path.splitext(input_file)[0] + '.wav'
-
-        # Use FFmpeg to extract audio from video
-        cmd = [
-            'ffmpeg',
-            '-y',
-            '-i', input_file,  # Input video file
-            '-vn',  # Disable video stream
-            '-ac', '2',  # Set stereo audio
-            '-ar', '44100',  # Set audio sample rate to 44100 Hz
-            '-acodec', 'pcm_s16le',  # Set audio codec to PCM signed 16-bit little-endian
-            output_file  # Output WAV file
-        ]
-
-        # Run the FFmpeg command
-        # 将 cmd 列表转换为字符串命令
-        cmd_str = ' '.join(cmd)
-        # 执行命令
-        subprocess.run(cmd_str, shell=True)
-
-    else:
-        # Load the audio from other audio formats
-        audio = AudioSegment.from_file(input_file)
-        # Create the output WAV file path
-        output_file = os.path.splitext(input_file)[0] + '.wav'
-        # Export the audio to WAV format
-        audio.export(output_file, format='wav')
-
-    print(f"process success ouput_audio_file = {output_file}")
-    return output_file
-
-def preprocess_audio(input_file):
-    # Check if the input file is a video file (e.g., MP4)
-    if input_file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')):
-        print(f"input file is {input_file}")
-    else:
-        audio = AudioSegment.from_file(input_file)
-        duration_in_seconds = len(audio) / 1000  # Duration in seconds
-        if duration_in_seconds < 3:
-            raise ValueError("为了保证合成效果发音人语音文件不得低于3s。")
-
-    # Call the convert_to_wav function if audio duration is >= 1 minute
-    return convert_to_wav(input_file)
 
 with gr.Blocks(
     title="数字人Demo",
@@ -228,13 +94,13 @@ with gr.Blocks(
                 post_filter_mel_smoothing = gr.inputs.Slider(minimum=0.0, maximum=1.0, default=0.80, step=0.05, label="Post Filter Mel Smoothing")
             with gr.Column():
                 # with gr.Row():
-                speaker_audio = gr.Audio(label="请选择发音人语音文件(音频、视频二选一) 文件大小限制在100M以内", type="filepath", preprocess=preprocess_audio)
-                speaker_video = gr.Video(label="请选择发音人视频文件(音频、视频二选一) 文件大小限制在100M以内", preprocess=preprocess_audio)
+                speaker_audio = gr.Audio(label="请选择发音人语音文件(音频、视频二选一) 文件大小限制在100M以内", type="filepath")
+                speaker_video = gr.Video(label="请选择发音人视频文件(音频、视频二选一) 文件大小限制在100M以内")
                 submit_tts_button = gr.Button(value="合成语音", font_size=14)
     with gr.Row():
         with gr.Column():
             gr.Label(value="2、语音+视频合成新的数字人视频", font_size=18)
-            audio_input = gr.Audio(label="选择音频文件,或者通过文本合成语音，文件大小限制在100M以内", type='filepath', preprocess=convert_to_wav)
+            audio_input = gr.Audio(label="选择音频文件,或者通过文本合成语音，文件大小限制在100M以内", type='filepath')
             video_input = gr.inputs.Video(label="选择数字人基础视频文件，文件大小限制在100M以内", type="mp4")
         with gr.Column():
             with gr.Column():
@@ -251,7 +117,7 @@ with gr.Blocks(
     submit_button.click(run_inference, inputs=[submit_button, audio_input, video_input, enhancer_input, use_DAIN_input, time_step_input], outputs=[result_video_output])
 
 
-user_or_password = [["qhy", "qiu3178278"], ["fm_01", "fm_8860"], ["fm_02", "fm_8860"]]
+user_or_password = [["dm01", "123456"]]
 
 if __name__ == "__main__":
     demo.queue().launch(server_name="0.0.0.0", share=False, server_port=8082, show_error=True, auth=user_or_password, show_api=False)
