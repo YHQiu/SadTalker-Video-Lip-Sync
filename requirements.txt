@@ -18,7 +18,7 @@ facexlib==0.2.5
 gradio
 gfpgan
 dlib-bin
-tts==0.17.8
-torchaudio==2.1.0
+tts==0.20.2
+torchaudio
 speechbrain
 streamlit

@@ -20,7 +20,7 @@ def run(driven_audio, source_video, enhancer, use_DAIN, time_step, result_dir):
         source_video=source_video,
         checkpoint_dir='./checkpoints',
         result_dir=result_dir,
-        batch_size=1,
+        batch_size=8,
         enhancer=enhancer,
         cpu=False,  # Assuming you don't want to run on CPU by default
         use_DAIN=use_DAIN,

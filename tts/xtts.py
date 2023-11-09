@@ -22,9 +22,9 @@ def remove_odd_quotes(sentence):
     return sentence
 
 # 生成语音，使用自定义分词器和过滤器
-def tts_sync(text: str, output_wav_path: str, speaker_wav_path: str, speed: int = 1.0, decoder_iterations: int = 30, language: str = "zh-cn"):
+def tts_sync(text: str, output_wav_path: str, speaker_wav_path: str, speed: float = 1.0, decoder_iterations: int = 30, language: str = "zh-cn"):
 
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v1")
+    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
     if torch.cuda.is_available():
         tts.to(device='cuda')
 
@@ -39,8 +39,7 @@ def tts_sync(text: str, output_wav_path: str, speaker_wav_path: str, speed: int 
         file_path=output_wav_path,
         speaker_wav=speaker_wav_path,
         language=language,
-        speed=speed,
-        decoder_iterations=decoder_iterations
+        speed=speed
     )
 
     if torch.cuda.is_available():
